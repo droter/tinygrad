@@ -46,7 +46,8 @@ class Div(Function):
   def backward(ctx, grad_output):
     x,y = ctx.saved_tensors
     return grad_output / y, -x * grad_output / y**2
-register('div', Div)
+# TODO: registering this breaks the default div on the GPU
+#register('div', Div)
 
 class Pow(Function):
   @staticmethod
@@ -96,13 +97,15 @@ register('matmul', Dot)
 class Pad2D(Function):
   @staticmethod
   def forward(ctx, x, padding=None):
+    ctx.save_for_backward(padding)
     return np.pad(x,
       ((0,0), (0,0),
        (padding[0], padding[1]), (padding[2], padding[3])))
 
   @staticmethod
   def backward(ctx, grad_output):
-    raise Exception("write this")
+    padding, = ctx.saved_tensors
+    return grad_output[..., padding[0]:-padding[1], padding[2]:-padding[3]]
 register('pad2d', Pad2D)
 
 class Reshape(Function):
@@ -165,7 +168,7 @@ class LogSoftmax(Function):
   @staticmethod
   def backward(ctx, grad_output):
     output, = ctx.saved_tensors
-    return grad_output - np.exp(output)*grad_output.sum(axis=1).reshape((-1, 1))
+    return grad_output - np.exp(output)*(grad_output.sum(axis=1).reshape((-1, 1)))
 register('logsoftmax', LogSoftmax)
 
 
